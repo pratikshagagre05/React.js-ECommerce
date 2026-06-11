@@ -7,37 +7,72 @@ import {
   Grid,
   IconButton,
   Paper,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
+import OrderSuccess from "../components/OrderSuccess";
+import CheckoutForm from "../components/CheckoutForm";
 
 export default function CartPage() {
   const { cart, removeFromCart, addToCart } = useContext(AppContext);
 
   const [suggestions, setSuggestions] = useState([]);
+  const [openCheckout, setOpenCheckout] = useState(false);
+  const [orderPlaced, setOrderPlaced] = useState(false);
 
-  // Fetch suggested products
+  // Fetch suggestions
   useEffect(() => {
-    fetch("https://dummyjson.com/products?limit=9")
+    fetch("https://dummyjson.com/products?limit=8")
       .then((res) => res.json())
       .then((data) => setSuggestions(data.products));
   }, []);
 
-  // Calculate total
+  // Auto close success screen after 1 min
+  useEffect(() => {
+    let timer;
+    if (orderPlaced) {
+      timer = setTimeout(() => {
+        setOrderPlaced(false);
+      }, 6000);
+    }
+    return () => clearTimeout(timer);
+  }, [orderPlaced]);
+
   const total = cart.reduce((sum, item) => sum + item.price, 0);
 
+  const formattedTotal = new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+  }).format(total);
+
   return (
-    <Box p={3} sx={{ background: "#f5f5f5", minHeight: "100vh" }}>
-      {/* Page Title */}
+    <Box
+      p={3}
+      sx={{
+        background: "#f5f5f5",
+        minHeight: "100vh",
+
+        // Animation
+        "@keyframes scaleUp": {
+          "0%": { transform: "scale(0.8)", opacity: 0 },
+          "100%": { transform: "scale(1)", opacity: 1 },
+        },
+      }}
+    >
       <Typography variant="h5" fontWeight="bold" mb={3}>
         🛒 Your Cart
       </Typography>
 
-      {/* Empty Cart */}
+      {/* Cart Section */}
       {cart.length === 0 ? (
         <Typography>Your cart is empty 😢</Typography>
       ) : (
         <Grid container spacing={3}>
-          {/* Cart Items */}
+          {/* Items */}
           <Grid item xs={12} md={8}>
             {cart.map((item) => (
               <Paper
@@ -51,19 +86,12 @@ export default function CartPage() {
                   borderRadius: 3,
                 }}
               >
-                {/* Product Image */}
                 <img
                   src={item.thumbnail}
                   alt={item.title}
-                  style={{
-                    width: "90px",
-                    height: "90px",
-                    objectFit: "cover",
-                    borderRadius: "10px",
-                  }}
+                  style={{ width: "80px", height: "80px", borderRadius: "8px" }}
                 />
 
-                {/* Product Details */}
                 <Box flex={1}>
                   <Typography fontWeight="bold">{item.title}</Typography>
 
@@ -74,7 +102,6 @@ export default function CartPage() {
                   </Typography>
                 </Box>
 
-                {/* Remove Button */}
                 <IconButton
                   onClick={() => removeFromCart(item.id)}
                   color="error"
@@ -85,7 +112,7 @@ export default function CartPage() {
             ))}
           </Grid>
 
-          {/* Order Summary */}
+          {/* Summary */}
           <Grid item xs={12} md={4}>
             <Paper sx={{ p: 3, borderRadius: 3 }}>
               <Typography variant="h6" fontWeight="bold">
@@ -94,7 +121,7 @@ export default function CartPage() {
 
               <Box mt={2}>
                 <Typography>Items: {cart.length}</Typography>
-                <Typography mt={1}>Total: ₹{total}</Typography>
+                <Typography mt={1}>Total: ₹{formattedTotal}</Typography>
               </Box>
 
               <Button
@@ -103,9 +130,8 @@ export default function CartPage() {
                 sx={{
                   mt: 3,
                   background: "#ff3f6c",
-                  fontWeight: "bold",
-                  "&:hover": { background: "#e7335e" },
                 }}
+                onClick={() => setOpenCheckout(true)}
               >
                 Place Order
               </Button>
@@ -114,7 +140,7 @@ export default function CartPage() {
         </Grid>
       )}
 
-      {/* Suggested Products Section */}
+      {/* Suggested Products */}
       <Box mt={5}>
         <Typography variant="h6" fontWeight="bold" mb={2}>
           You May Also Like
@@ -122,55 +148,37 @@ export default function CartPage() {
 
         <Grid container spacing={2}>
           {suggestions
-            // optional: hide items already in cart
             .filter((p) => !cart.some((c) => c.id === p.id))
             .map((item) => (
               <Grid item xs={6} sm={4} md={3} key={item.id}>
                 <Box
                   sx={{
                     p: 2,
-                    borderRadius: 2,
                     background: "#fff",
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                    borderRadius: 2,
                     textAlign: "center",
-                    transition: "0.3s",
-                    "&:hover": {
-                      transform: "scale(1.05)",
-                    },
                   }}
                 >
-                  {/* Image */}
                   <img
                     src={item.thumbnail}
                     alt={item.title}
                     style={{
-                      width: "100%",
-                      height: "120px",
-                      objectFit: "cover",
-                      borderRadius: "10px",
+                      width: "80px",
+                      height: "80px",
+                      borderRadius: "8px",
                     }}
                   />
 
-                  {/* Title */}
                   <Typography fontSize={14} mt={1}>
                     {item.title.slice(0, 20)}...
                   </Typography>
 
-                  {/* Price */}
-                  <Typography color="#ff3f6c" fontWeight="bold">
-                    ₹{item.price}
-                  </Typography>
+                  <Typography color="#ff3f6c">₹{item.price}</Typography>
 
-                  {/* Add Button */}
                   <Button
                     size="small"
                     variant="contained"
-                    sx={{
-                      mt: 1,
-                      background: "#ff3f6c",
-                      fontSize: "12px",
-                      "&:hover": { background: "#e7335e" },
-                    }}
+                    sx={{ mt: 1, background: "#ff3f6c" }}
                     onClick={() => addToCart(item)}
                   >
                     Add
@@ -180,6 +188,21 @@ export default function CartPage() {
             ))}
         </Grid>
       </Box>
+
+      {/* Checkout Form */}
+      <CheckoutForm
+        openCheckout={openCheckout}
+        setOpenCheckout={setOpenCheckout}
+        setOrderPlaced={setOrderPlaced}
+      />
+
+      {/* Order Success Screen */}
+      {orderPlaced && (
+        <OrderSuccess
+          openCheckout={openCheckout}
+          setOrderPlaced={setOrderPlaced}
+        />
+      )}
     </Box>
   );
 }
